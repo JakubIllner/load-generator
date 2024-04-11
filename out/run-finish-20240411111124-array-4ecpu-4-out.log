@@ -1,0 +1,1 @@
+{"action": "finish", "scenario": "array", "size": "4ecpu", "table": "gl_stream_array", "threads": 4, "inserts": 1166613, "bytes": 251658240, "blocks": 30720, "start_ts": "2024/04/11 11:11:25,000000", "end_ts": "2024/04/11 11:12:25,000000"}
