@@ -1,7 +1,15 @@
+"""
+Generate and test parallel data ingestion workload into Oracle Database and other Oracle Cloud services such as Streaming.
+
+Usage: python run-gen.py -s <scenario> -z <size> -t <threads> -d <duration> -x <min records> -y <max records> -i <iterations> -e <sleep> -b <table> -u <dbuser> -p <dbpwd> -c <dbconnect> -o <topic ocid>
+"""
+
 import string
+import time
 import datetime
 import random
 import json
+import copy
 import sys
 import logging
 import codecs
@@ -10,8 +18,12 @@ import os
 import getopt
 
 from dateutil.relativedelta import relativedelta
+from base64 import b64encode
 
 import oracledb
+import oci
+
+from concurrent.futures import ProcessPoolExecutor
 
 
 # ----------------------------------------------------
@@ -23,10 +35,9 @@ import oracledb
 # ----------------------------------------------------
 def get_input_parameters(p_argv):
 
-   v_usage = '{} -a <action> -s <scenario> -z <size> -t <threads> -r <thread> -d <duration> -x <min records> -y <max records> -i <iterations> -b <table> -u <dbuser> -p <dbpwd> -c <dbconnect>'.format(p_argv[0])
+   v_usage = '{} -s <scenario> -z <size> -t <threads> -d <duration> -x <min records> -y <max records> -i <iterations> -e <sleep> -b <table> -u <dbuser> -p <dbpwd> -c <dbconnect> -o <topic ocid>'.format(p_argv[0])
 
    v_params = {
-      'action':      None,
       'scenario':    None,
       'size':        None,
       'threads':     None,
@@ -35,32 +46,36 @@ def get_input_parameters(p_argv):
       'minrec':      60,
       'maxrec':      100,
       'iterations':  1,
+      'sleep':       0,
       'table':       None,
       'dbuser':      None,
       'dbpwd':       None,
-      'dbconnect':   None
+      'dbconnect':   None,
+      'topic':       None,
+      'loglevel':    'INFO'
    } 
      
    v_help = '''
    Options:
    -h, --help             Print help
-   -a, --action           Action to perform (init, run, finish) [mandatory]
-   -s, --scenario         Scenario (single, batch, array, fast) [mandatory]
-   -z, --size             Size of database instance [mandatory if action=run]
-   -t, --threads          Number of threads [mandatory if action=run]
-   -r, --thread           Current thread [mandatory if action=run]
-   -d, --duration         Duration in seconds [mandatory if action=run]
+   -s, --scenario         Scenario (single, batch, array, fast, stream) [mandatory]
+   -z, --size             Size of database or streaming instance [mandatory]
+   -t, --threads          Number of threads [mandatory]
+   -d, --duration         Duration in seconds [mandatory]
    -x, --minrec           Minimum number of records in iteration [{0}]
    -y, --maxrec           Maximum number of records in iteration [{1}]
    -i, --iterations       Number of iterations before write to database [{2}]
-   -b, --table            Name of target table [mandatory]
-   -u, --dbuser           Database user [mandatory]
-   -p, --dbpwd            Database user password [mandatory]
-   -c, --dbconnect        Database connect string [mandatory]
-   '''.format(v_params['minrec'], v_params['maxrec'], v_params['iterations'])
+   -e, --sleep            Sleep time in seconds between iterations [{3}]
+   -b, --table            Name of target table [mandatory if scenario=single|batch|array|fast]
+   -u, --dbuser           Database user [mandatory if scenario=single|batch|array|fast]
+   -p, --dbpwd            Database user password [mandatory if scenario=single|batch|array|fast]
+   -c, --dbconnect        Database connect string [mandatory if scenario=single|batch|array|fast]
+   -o, --topic            Streaming topic OCID [mandatory if scenario=stream]
+       --loglevel         Log level [DEBUG, INFO, WARNING, ERROR, CRITICAL], default is {4}
+   '''.format(v_params['minrec'], v_params['maxrec'], v_params['iterations'], v_params['sleep'], v_params['loglevel'])
 
    try:
-      (v_opts, v_args) = getopt.getopt(p_argv[1:],"ha:s:z:t:r:d:x:y:i:b:u:p:c:",['help','action=','scenario=','size=','threads=','thread=','duration=','minrec=','maxrec=','iterations=','table=','dbuser=','dbpwd=','dbconnect='])
+      (v_opts, v_args) = getopt.getopt(p_argv[1:],"hs:z:t:d:x:y:i:e:b:u:p:c:o:",['help','scenario=','size=','threads=','duration=','minrec=','maxrec=','iterations=','sleep=','table=','dbuser=','dbpwd=','dbconnect=','topic=','loglevel='])
    except getopt.GetoptError:
       g_logger.error ('Unknown parameter or parameter with missing value')
       print (v_usage)
@@ -70,18 +85,12 @@ def get_input_parameters(p_argv):
          print (v_usage)
          print (v_help)
          sys.exit()
-      elif v_opt in ('-a', '--action'):
-         v_params['action'] = v_arg
       elif v_opt in ('-s', '--scenario'):
          v_params['scenario'] = v_arg
       elif v_opt in ('-z', '--size'):
          v_params['size'] = v_arg
       elif v_opt in ('-t', '--threads'):
          v_params['threads'] = int(v_arg)
-      elif v_opt in ('-r', '--thread'):
-         v_params['thread'] = int(v_arg)
-      elif v_opt in ('-d', '--duration'):
-         v_params['duration'] = int(v_arg)
       elif v_opt in ('-d', '--duration'):
          v_params['duration'] = int(v_arg)
       elif v_opt in ('-x', '--minrec'):
@@ -90,6 +99,8 @@ def get_input_parameters(p_argv):
          v_params['maxrec'] = int(v_arg)
       elif v_opt in ('-i', '--iterations'):
          v_params['iterations'] = int(v_arg)
+      elif v_opt in ('-e', '--sleep'):
+         v_params['sleep'] = int(v_arg)
       elif v_opt in ('-b', '--table'):
          v_params['table'] = v_arg
       elif v_opt in ('-u', '--dbuser'):
@@ -98,65 +109,69 @@ def get_input_parameters(p_argv):
          v_params['dbpwd'] = v_arg
       elif v_opt in ('-c', '--dbconnect'):
          v_params['dbconnect'] = v_arg
+      elif v_opt in ('-o', '--topic'):
+         v_params['topic'] = v_arg
+      elif v_opt in ('--loglevel'):
+         v_params['loglevel'] = v_arg.upper()
 
-   if v_params['action'] == None:
-      g_logger.error ('Missing value for parameter "action"')
-      print (v_usage)
-      sys.exit(2)
-   elif v_params['action'] not in ('init', 'run', 'finish'):
-      g_logger.error ('Parameter "action" must have value "init", "run", or "finish"')
-      print (v_usage)
-      sys.exit(2)
    if v_params['scenario'] == None:
       g_logger.error ('Missing value for parameter "scenario"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['scenario'] not in ('single', 'batch', 'array', 'fast'):
-      g_logger.error ('Parameter "scenario" must have value "single", "batch", "array", or "fast"')
+   elif v_params['scenario'] not in ('single', 'batch', 'array', 'fast', 'stream'):
+      g_logger.error ('Parameter "scenario" must have value "single", "batch", "array", "fast", or "stream"')
       print (v_usage)
       sys.exit(2)
-   if v_params['size'] == None and v_params['action'] == 'run':
+   if v_params['size'] == None:
       g_logger.error ('Missing value for parameter "size"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['threads'] == None and v_params['action'] == 'run':
+   elif v_params['threads'] == None:
       g_logger.error ('Missing value for parameter "threads"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['thread'] == None and v_params['action'] == 'run':
-      g_logger.error ('Missing value for parameter "thread"')
-      print (v_usage)
-      sys.exit(2)
-   elif v_params['duration'] == None and v_params['action'] == 'run':
+   elif v_params['duration'] == None:
       g_logger.error ('Missing value for parameter "duration"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['minrec'] == None and v_params['minrec'] == 'run':
+   elif v_params['minrec'] == None:
       g_logger.error ('Missing value for parameter "minrec"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['maxrec'] == None and v_params['maxrec'] == 'run':
+   elif v_params['maxrec'] == None:
       g_logger.error ('Missing value for parameter "maxrec"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['iterations'] == None and v_params['iterations'] == 'run':
+   elif v_params['iterations'] == None:
       g_logger.error ('Missing value for parameter "iterations"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['table'] == None:
+   elif v_params['sleep'] == None:
+      g_logger.error ('Missing value for parameter "sleep"')
+      print (v_usage)
+      sys.exit(2)
+   elif v_params['table'] == None and v_params['scenario'] in ('single', 'batch', 'array', 'fast'):
       g_logger.error ('Missing value for parameter "table"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['dbuser'] == None:
+   elif v_params['dbuser'] == None and v_params['scenario'] in ('single', 'batch', 'array', 'fast'):
       g_logger.error ('Missing value for parameter "dbuser"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['dbpwd'] == None:
+   elif v_params['dbpwd'] == None and v_params['scenario'] in ('single', 'batch', 'array', 'fast'):
       g_logger.error ('Missing value for parameter "dbpwd"')
       print (v_usage)
       sys.exit(2)
-   elif v_params['dbconnect'] == None:
+   elif v_params['dbconnect'] == None and v_params['scenario'] in ('single', 'batch', 'array', 'fast'):
       g_logger.error ('Missing value for parameter "dbconnect"')
+      print (v_usage)
+      sys.exit(2)
+   elif v_params['topic'] == None and v_params['scenario'] == ('stream'):
+      g_logger.error ('Missing value for parameter "topic"')
+      print (v_usage)
+      sys.exit(2)
+   elif v_params['loglevel'] not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+      g_logger.error ('Missing or invalid value for parameter "loglevel"')
       print (v_usage)
       sys.exit(2)
 
@@ -349,48 +364,97 @@ def get_journals(p_journal_count, p_minrec, p_maxrec):
 # ----------------------------------------------------
 
 # ----------------------------------------------------
-# Normal connect
+# Normal connect to database
 # ----------------------------------------------------
 def connect_oracle(p_params):
 
+    v_context = {
+       'connection':  None,
+       'cursor':      None
+    } 
+
     oracledb.init_oracle_client()
 
     try:
-        v_connection = oracledb.connect(
+        v_context['connection'] = oracledb.connect(
             user=p_params['dbuser'],
             password=p_params['dbpwd'],
             dsn=p_params['dbconnect']
         )
-        v_cursor = v_connection.cursor()
+        v_context['cursor'] = v_context['connection'].cursor()
 
     except Exception as e:
-        logging.warning ('Cannot connect to the database {0}'.format(e))
+        g_logger.warning ('Cannot connect to the database: {0}'.format(e))
         raise
 
-    return (v_connection, v_cursor)
+    return v_context
 
 
 # ----------------------------------------------------
-# Connect for fast ingest
+# Connect to database for fast ingest
 # ----------------------------------------------------
 def connect_oracle_fast(p_params):
 
+    v_context = {
+       'connection':  None,
+       'cursor':      None
+    } 
+
     oracledb.init_oracle_client()
 
     try:
-        v_connection = oracledb.connect(
+        v_context['connection'] = oracledb.connect(
             user=p_params['dbuser'],
             password=p_params['dbpwd'],
             dsn=p_params['dbconnect']
         )
-        v_cursor = v_connection.cursor()
-        v_cursor.execute('alter session set optimizer_ignore_hints = false')
+        v_context['cursor'] = v_context['connection'].cursor()
+        v_context['cursor'].execute('alter session set optimizer_ignore_hints = false')
 
     except Exception as e:
-        logging.warning ('Cannot connect to the database {0}'.format(e))
+        g_logger.warning ('Cannot connect to the database for fast ingest: {0}'.format(e))
         raise
 
-    return (v_connection, v_cursor)
+    return v_context
+
+
+# ----------------------------------------------------
+# Connect to streaming
+# ----------------------------------------------------
+def connect_streaming(p_params):
+
+    v_context = {
+       'config':       None,
+       'adminclient':  None,
+       'stream':       None,
+       'streamclient': None
+    } 
+
+    try:
+        v_context['config'] = oci.config.from_file()
+    except Exception as e:
+        g_logger.warning ('Cannot read OCI config default file: {0}'.format(e))
+        raise
+
+    try:
+        v_context['adminclient'] = oci.streaming.StreamAdminClient(config=v_context['config'])
+    except Exception as e:
+        g_logger.warning ('Cannot get StreamAdminClient: {0}'.format(e))
+        raise
+
+    try:
+        v_context['stream'] = v_context['adminclient'].get_stream(stream_id=p_params['topic']).data
+    except Exception as e:
+        g_logger.warning ('Cannot get stream: {0}'.format(e))
+        raise
+
+    try:
+       v_context['streamclient'] = oci.streaming.StreamClient(config=v_context['config'], service_endpoint=v_context['stream'].messages_endpoint)
+    except Exception as e:
+        g_logger.warning ('Cannot get StreamClient: {0}'.format(e))
+        raise
+
+    return v_context
 
 
 # ----------------------------------------------------
@@ -400,138 +464,260 @@ def connect_oracle_fast(p_params):
 # ----------------------------------------------------
 # Run with commit after every row
 # ----------------------------------------------------
-def run_single(p_params, p_scenario_name, p_run_id, p_connection, p_cursor):
+def run_single(p_params, p_context, p_scenario_name, p_run_id):
 
     try:
         v_data_array = get_journals(p_params["iterations"], p_params["minrec"], p_params["maxrec"])
     except Exception as e:
-        logging.warning ('Data generator failed with exception {0}'.format(e))
+        g_logger.warning ('Data generator failed with exception: {0}'.format(e))
         raise
 
     v_data_count = 0
+    v_failure_count = 0
     v_sql = 'insert into {} (ts, id, scenario, run_id, payload) values (:ts, :id, :scenario, :run_id, :payload)'.format(p_params["table"])
+    v_data_size = 0
 
     for v_data_line in v_data_array:
 
         v_timestamp = datetime.datetime.today()
         v_uuid = str(uuid.uuid4())
         v_data_line_json = json.dumps(v_data_line)
+        v_data_size = v_data_size + (len(v_data_line_json)+len(v_uuid)+len(str(v_timestamp)))
 
-        p_cursor.setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
-        p_cursor.execute(v_sql, ts=v_timestamp, id=v_uuid, scenario=p_scenario_name, run_id=p_run_id, payload=v_data_line_json)
-        p_connection.commit()
+        p_context['cursor'].setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
+        p_context['cursor'].execute(v_sql, ts=v_timestamp, id=v_uuid, scenario=p_scenario_name, run_id=p_run_id, payload=v_data_line_json)
+        p_context['connection'].commit()
 
         v_data_count = v_data_count+1
 
-    return v_data_count
+    return v_data_count, v_failure_count, v_data_size, v_data_size
 
 
 # ----------------------------------------------------
 # Run with commit after the batch
 # ----------------------------------------------------
-def run_batch(p_params, p_scenario_name, p_run_id, p_connection, p_cursor):
+def run_batch(p_params, p_context, p_scenario_name, p_run_id):
 
     try:
         v_data_array = get_journals(p_params["iterations"], p_params["minrec"], p_params["maxrec"])
     except Exception as e:
-        logging.warning ('Data generator failed with exception {0}'.format(e))
+        g_logger.warning ('Data generator failed with exception: {0}'.format(e))
         raise
 
     v_data_count = 0
+    v_failure_count = 0
     v_sql = 'insert into {} (ts, id, scenario, run_id, payload) values (:ts, :id, :scenario, :run_id, :payload)'.format(p_params["table"])
+    v_data_size = 0
 
     for v_data_line in v_data_array:
 
         v_timestamp = datetime.datetime.today()
         v_uuid = str(uuid.uuid4())
         v_data_line_json = json.dumps(v_data_line)
+        v_data_size = v_data_size + (len(v_data_line_json)+len(v_uuid)+len(str(v_timestamp)))
 
-        p_cursor.setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
-        p_cursor.execute(v_sql, ts=v_timestamp, id=v_uuid, scenario=p_scenario_name, run_id=p_run_id, payload=v_data_line_json)
+        p_context['cursor'].setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
+        p_context['cursor'].execute(v_sql, ts=v_timestamp, id=v_uuid, scenario=p_scenario_name, run_id=p_run_id, payload=v_data_line_json)
 
         v_data_count = v_data_count+1
 
-    p_connection.commit()
-    return v_data_count
+    p_context['connection'].commit()
+
+    return v_data_count, v_failure_count, v_data_size, v_data_size
 
 
 # ----------------------------------------------------
 # Run with array insert
 # ----------------------------------------------------
-def run_array(p_params, p_scenario_name, p_run_id, p_connection, p_cursor):
+def run_array(p_params, p_context, p_scenario_name, p_run_id):
 
     try:
         v_data_array = get_journals(p_params["iterations"], p_params["minrec"], p_params["maxrec"])
     except Exception as e:
-        logging.warning ('Data generator failed with exception {0}'.format(e))
+        g_logger.warning ('Data generator failed with exception: {0}'.format(e))
         raise
 
     v_data_count = 0
-    v_data = []
+    v_failure_count = 0
     v_sql = 'insert into {} (ts, id, scenario, run_id, payload) values (:ts, :id, :scenario, :run_id, :payload)'.format(p_params["table"])
+    v_data = []
+    v_data_size = 0
 
     for v_data_line in v_data_array:
 
         v_timestamp = datetime.datetime.today()
         v_uuid = str(uuid.uuid4())
         v_data_line_json = json.dumps(v_data_line)
+        v_data_size = v_data_size + (len(v_data_line_json)+len(v_uuid)+len(str(v_timestamp)))
 
         v_data.append((v_timestamp, v_uuid, p_scenario_name, p_run_id, v_data_line_json))
         v_data_count = v_data_count+1
 
-    p_cursor.setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
-    p_cursor.executemany(v_sql, v_data)
-    p_connection.commit()
+    p_context['cursor'].setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
+    p_context['cursor'].executemany(v_sql, v_data)
+    p_context['connection'].commit()
     
-    return v_data_count
+    return v_data_count, v_failure_count, v_data_size, v_data_size
 
 
 # ----------------------------------------------------
 # Run with array insert and memoptimize write
 # ----------------------------------------------------
-def run_fast(p_params, p_scenario_name, p_run_id, p_connection, p_cursor):
+def run_fast(p_params, p_context, p_scenario_name, p_run_id):
 
     try:
         v_data_array = get_journals(p_params["iterations"], p_params["minrec"], p_params["maxrec"])
     except Exception as e:
-        logging.warning ('Data generator failed with exception {0}'.format(e))
+        g_logger.warning ('Data generator failed with exception: {0}'.format(e))
         raise
 
     v_data_count = 0
-    v_data = []
+    v_failure_count = 0
     v_sql = 'insert /*+ MEMOPTIMIZE_WRITE */ into {} (ts, id, scenario, run_id, payload) values (:ts, :id, :scenario, :run_id, :payload)'.format(p_params["table"])
+    v_data = []
+    v_data_size = 0
 
     for v_data_line in v_data_array:
 
         v_timestamp = datetime.datetime.today()
         v_uuid = str(uuid.uuid4())
         v_data_line_json = json.dumps(v_data_line)
+        v_data_size = v_data_size + (len(v_data_line_json)+len(v_uuid)+len(str(v_timestamp)))
 
         v_data.append((v_timestamp, v_uuid, p_scenario_name, p_run_id, v_data_line_json))
         v_data_count = v_data_count+1
 
-    p_cursor.setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
-    p_cursor.executemany(v_sql, v_data)
+    p_context['cursor'].setinputsizes = (oracledb.DB_TYPE_TIMESTAMP)
+    p_context['cursor'].executemany(v_sql, v_data)
     # commit is not used with fast ingest
-    #p_connection.commit()
+    #p_context['connection'].commit()
 
-    return v_data_count
+    return v_data_count, v_failure_count, v_data_size, v_data_size
+
+
+# ----------------------------------------------------
+# Put messages to streaming with retries
+# - necessary to wrap the standard put_messages() as it does not retry partial failures
+# ----------------------------------------------------
+def put_messages_with_retry(p_streamclient, p_stream_id, p_messages, p_data, p_max_retries):
+
+    # Put messages to the stream
+    v_retry_count = 0
+    v_sleep_base_time_sec = 30/1000
+    v_sleep_max_time_sec = 3
+    v_sleep_total_sec = 0
+
+    try:
+        v_put_message_result = p_streamclient.put_messages(stream_id=p_stream_id, put_messages_details=p_messages, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+        v_data_total_count = len(v_put_message_result.data.entries)
+        v_data_failure_count = v_put_message_result.data.failures
+        v_data_success_count = v_data_total_count - v_data_failure_count
+        g_logger.debug('Put messages attempt: retry_count={}, data_total_count={}, data_retry_count={}, data_success_count={}, data_failure_count={}, sleep_time_ms={}'.format(v_retry_count, v_data_total_count, v_data_total_count, v_data_success_count, v_data_failure_count, round(v_sleep_total_sec*1000)))
+    except Exception as e:
+        g_logger.error ('Put messages failed with exception: {0}'.format(e))
+        raise
+
+    # Retry for the failed messages
+    while v_data_failure_count > 0 and v_retry_count <= p_max_retries:
+
+        v_exponential_backoff_sleep_base = min(v_sleep_base_time_sec * (2 ** v_retry_count), v_sleep_max_time_sec)
+        v_sleep_time = (v_exponential_backoff_sleep_base / 2.0) + random.uniform(0, v_exponential_backoff_sleep_base / 2.0)
+
+        time.sleep(v_sleep_time)
+
+        v_retry_data = []
+        v_retry_count = v_retry_count+1
+        v_sleep_total_sec = v_sleep_total_sec + v_sleep_time
+
+        for v_entry_index in range(len(v_put_message_result.data.entries)):
+            v_entry = v_put_message_result.data.entries[v_entry_index]
+            if v_entry.error:
+                #g_logger.debug('Put messages error: {}: {}'.format(v_entry.error, v_entry.error_message))
+                v_retry_data.append(p_data[v_entry_index])
+
+        v_retry_messages = oci.streaming.models.PutMessagesDetails(messages=v_retry_data)
+    
+        try:
+            v_put_message_result = p_streamclient.put_messages(stream_id=p_stream_id, put_messages_details=v_retry_messages, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY)
+            v_data_retry_count = len(v_put_message_result.data.entries)
+            v_data_failure_count = v_put_message_result.data.failures
+            v_data_success_count = v_data_success_count + (v_data_retry_count - v_data_failure_count)
+            g_logger.debug('Put messages attempt: retry_count={}, data_total_count={}, data_retry_count={}, data_success_count={}, data_failure_count={}, sleep_time_ms={}'.format(v_retry_count, v_data_total_count, v_data_retry_count, v_data_success_count, v_data_failure_count, round(v_sleep_total_sec*1000)))
+        except Exception as e:
+            g_logger.error ('Put messages failed with exception: {0}'.format(e))
+            raise
+
+    return v_retry_count, v_data_total_count, v_data_success_count, v_data_failure_count
+
+
+# ----------------------------------------------------
+# Produce data to streaming
+# ----------------------------------------------------
+def run_streaming(p_params, p_context, p_scenario_name, p_run_id):
+
+    # Generate data
+    try:
+        v_data_array = get_journals(p_params["iterations"], p_params["minrec"], p_params["maxrec"])
+    except Exception as e:
+        g_logger.warning ('Data generator failed with exception; {0}'.format(e))
+        raise
+
+    v_data_count = 0
+    v_failure_count = 0
+    v_timestamp = datetime.datetime.today()
+    v_data = []
+    v_data_size = 0
+    v_encoded_size = 0
+
+    # Create array of messages for streaming
+    for v_data_line in v_data_array:
+
+        v_value = {
+            'uuid': str(uuid.uuid4()),
+            'run_id': p_run_id,
+            'scenario': p_params['scenario'],
+            'timestamp': v_timestamp.isoformat(),
+            'data': v_data_line
+        }
+
+        v_value_string = json.dumps(v_value)
+        v_key_string = v_data_line['journal_external_reference']
+        v_value_encoded = b64encode(v_value_string.encode()).decode()
+        v_key_encoded = b64encode(v_key_string.encode()).decode()
+        v_data_size = v_data_size + (len(v_value_string)+len(v_key_string))
+        v_encoded_size = v_encoded_size + (len(v_value_encoded)+len(v_key_encoded))
+
+        v_data.append(oci.streaming.models.PutMessagesDetailsEntry(key=v_key_encoded, value=v_value_encoded))
+        v_data_count = v_data_count+1
+
+    v_messages = oci.streaming.models.PutMessagesDetails(messages=v_data)
+
+    # Put messages to the stream
+    (v_retry_count, v_data_count, v_success_count, v_failure_count) = put_messages_with_retry(
+        p_streamclient=p_context['streamclient'],
+        p_stream_id=p_params['topic'],
+        p_messages=v_messages,
+        p_data=v_data,
+        p_max_retries=8
+    )
+
+    return v_success_count, v_failure_count, v_data_size, v_encoded_size
 
 
 # ----------------------------------------------------
 # Truncate the target table
 # ----------------------------------------------------
-def run_truncate(p_params, p_connection, p_cursor):
+def run_truncate(p_params, p_context):
 
     v_sql = 'truncate table {}'.format(p_params["table"])
-    p_cursor.execute(v_sql)
+    p_context['cursor'].execute(v_sql)
 
     v_result = {
-       'action' : p_params['action'],
-       'scenario' : p_params['scenario'],
-       'size' : p_params['size'],
-       'table' : p_params['table'],
-       'message' : 'table truncated'
+        'type' : 'init',
+        'scenario' : p_params['scenario'],
+        'table' : p_params['table'],
+        'size' : p_params['size'],
+        'message' : 'table truncated'
     }
 
     return v_result
@@ -540,7 +726,7 @@ def run_truncate(p_params, p_connection, p_cursor):
 # ----------------------------------------------------
 # Get final statistics
 # ----------------------------------------------------
-def run_finish(p_params, p_connection, p_cursor):
+def run_finish(p_params, p_context):
 
     v_sql = '''
         with
@@ -569,18 +755,18 @@ def run_finish(p_params, p_connection, p_cursor):
         from table_stats, segment_stats
     '''.format(p_params["table"])
 
-    for row in p_cursor.execute(v_sql):
+    for row in p_context['cursor'].execute(v_sql):
         v_result = {
-           'action' : p_params['action'],
+           'type' : 'database',
            'scenario' : p_params['scenario'],
-           'size' : p_params['size'],
            'table' : p_params['table'],
+           'size' : p_params['size'],
            'threads' : row[0],
+           'start_ts' : row[4].strftime('%Y/%0m/%0d %H:%M:%S,%f'),
+           'end_ts' : row[5].strftime('%Y/%0m/%0d %H:%M:%S,%f'),
            'inserts' : row[1],
            'bytes' : row[2],
-           'blocks' : row[3],
-           'start_ts' : row[4].strftime('%Y/%0m/%0d %H:%M:%S,%f'),
-           'end_ts' : row[5].strftime('%Y/%0m/%0d %H:%M:%S,%f')
+           'blocks' : row[3]
         }
 
     return v_result
@@ -593,21 +779,244 @@ def run_finish(p_params, p_connection, p_cursor):
 # ----------------------------------------------------
 # Normal close
 # ----------------------------------------------------
-def close_oracle(p_params, p_connection, p_cursor):
+def close_oracle(p_params, p_context):
 
-    p_cursor.close()
+    p_context['cursor'].close()
     return
 
 
 # ----------------------------------------------------
 # Close for fast ingest
 # ----------------------------------------------------
-def close_oracle_fast(p_params, p_connection, p_cursor):
+def close_oracle_fast(p_params, p_context):
 
     v_sql = 'begin dbms_memoptimize.write_end; end;'
-    p_cursor.execute(v_sql)
-    p_cursor.close()
+    p_context['cursor'].execute(v_sql)
+    p_context['cursor'].close()
     return
+
+
+# ----------------------------------------------------
+# Close streaming
+# ----------------------------------------------------
+def close_streaming(p_params, p_context):
+
+    # No action needed
+    return
+
+
+# ----------------------------------------------------
+# TASK FUNCTIONS
+# ----------------------------------------------------
+
+# ----------------------------------------------------
+# Run single thread
+# ----------------------------------------------------
+def run_one_thread(p_params, fn_connect, fn_run, fn_close):
+
+    # Initialize
+    v_context = dict()
+    v_timestamp = dict()
+    v_timestamp['start'] = datetime.datetime.today()
+    v_run_id = v_timestamp['start'].strftime('%Y%0m%0d_%H%M%S') + '_'+str(os.getpid())
+
+    # Initialize connection
+    if fn_connect != None:
+        v_context = fn_connect(
+            p_params=p_params
+        )
+    
+    # Iterate until the time is exceeded
+    v_total_iteration_count = 0
+    v_total_data_count = 0
+    v_total_failure_count = 0
+    v_total_data_size = 0
+    v_total_encoded_size = 0
+    
+    while (datetime.datetime.today()-v_timestamp['start']).total_seconds() <= p_params['duration']:
+    
+        # Generate and insert data
+        (v_data_count, v_failure_count, v_data_size, v_encoded_size) = fn_run(
+            p_params=p_params,
+            p_context=v_context,
+            p_scenario_name='{}-{}-{}'.format(p_params['scenario'], p_params['size'], p_params['threads']),
+            p_run_id=v_run_id
+        )
+    
+        # Increment counters
+        v_total_iteration_count = v_total_iteration_count+1         
+        v_total_data_count = v_total_data_count+v_data_count
+        v_total_failure_count = v_total_failure_count+v_failure_count
+        v_total_data_size = v_total_data_size+v_data_size
+        v_total_encoded_size = v_total_encoded_size+v_encoded_size
+    
+        # Sleep
+        time.sleep(p_params['sleep'])
+    
+    # Close connection
+    if fn_close != None:
+        fn_close(
+            p_params=p_params,
+            p_context=v_context
+        )
+    
+    # Save end timestamp
+    v_timestamp['end'] = datetime.datetime.today()
+    
+    # Create result
+    v_result = {
+        'type' : 'detail',
+        'scenario' : p_params['scenario'],
+        'table' : p_params['table'],
+        'size' : p_params['size'],
+        'threads' : p_params['threads'],
+        'thread' : p_params['thread'],
+        'minrec' : p_params['minrec'],
+        'maxrec' : p_params['maxrec'],
+        'iterations' : p_params['iterations'],
+        'sleep' : p_params['sleep'],
+        'run_id' : v_run_id,
+        'max_run_seconds' : p_params['duration'],
+        'load_start_datetime' : v_timestamp['start'],
+        'load_end_datetime' : v_timestamp['end'],
+        'elapsed_sec_total' : (v_timestamp['end']-v_timestamp['start']).total_seconds(),
+        'total_iteration_count' : v_total_iteration_count,
+        'total_data_count' : v_total_data_count,
+        'total_failure_count' : v_total_failure_count,
+        'total_data_size' : v_total_data_size,
+        'total_encoded_size' : v_total_encoded_size
+    }
+
+    return v_result
+
+
+# ----------------------------------------------------
+# Run all threads
+# ----------------------------------------------------
+def run_all_threads(p_params, fn_connect, fn_run, fn_close):
+
+    # Initialize parameters
+    v_timestamp = dict()
+    v_timestamp['start'] = datetime.datetime.today()
+    v_run_id = v_timestamp['start'].strftime('%Y%0m%0d_%H%M%S')
+
+    v_params_array = []
+    for i in range(p_params['threads']):
+        v_params = copy.deepcopy(p_params)
+        v_params['thread'] = i+1
+        v_params_array.append(v_params)
+
+    fn_connect_array = [ fn_connect for i in range(p_params['threads']) ]
+    fn_run_array = [ fn_run for i in range(p_params['threads']) ]
+    fn_close_array = [ fn_close for i in range(p_params['threads']) ]
+
+    # Run all threads in parallel
+    with ProcessPoolExecutor(max_workers=p_params['threads']) as v_executor:
+        v_result_set = v_executor.map(run_one_thread, v_params_array, fn_connect_array, fn_run_array, fn_close_array)
+
+    # Consolidate results
+    v_result_array = []
+    v_result_count = 0
+
+    for v_result in v_result_set:
+
+        v_result_array.append(v_result)
+
+        if (v_result_count <= 0):
+            v_result_sum = copy.deepcopy(v_result)
+            v_result_sum['type'] = 'sum'
+            v_result_sum['thread'] = 0
+            v_result_sum['run_id'] = v_result['run_id'][0:15]
+        else:
+
+            if v_result['load_start_datetime'] < v_result_sum['load_start_datetime']:
+                v_result_sum['load_start_datetime'] = v_result['load_start_datetime']
+            
+            if v_result['load_end_datetime'] > v_result_sum['load_end_datetime']:
+                v_result_sum['load_end_datetime'] = v_result['load_end_datetime']
+
+            v_result_sum['elapsed_sec_total'] = (v_result_sum['load_end_datetime']-v_result_sum['load_start_datetime']).total_seconds()
+            
+            v_result_sum['total_iteration_count'] = v_result_sum['total_iteration_count'] + v_result['total_iteration_count']
+            v_result_sum['total_data_count'] = v_result_sum['total_data_count'] + v_result['total_data_count']
+            v_result_sum['total_failure_count'] = v_result_sum['total_failure_count'] + v_result['total_failure_count']
+            v_result_sum['total_data_size'] = v_result_sum['total_data_size'] + v_result['total_data_size']
+            v_result_sum['total_encoded_size'] = v_result_sum['total_encoded_size'] + v_result['total_encoded_size']
+
+        v_result_count = v_result_count+1
+
+    v_result_array.append(v_result_sum)
+    return v_result_array
+
+
+# ----------------------------------------------------
+# Execute init task
+# ----------------------------------------------------
+def init_task(p_params, fn_connect, fn_run, fn_close):
+
+    # Initialize
+    v_context = dict()
+    v_timestamp = dict()
+    v_timestamp['start'] = datetime.datetime.today()
+
+    # Initialize connection
+    if fn_connect != None:
+        v_context = fn_connect(
+            p_params=p_params
+        )
+            
+    # Run the init task
+    if fn_run != None:
+        v_result = fn_run(
+            p_params=p_params,
+            p_context=v_context
+        )
+    else:
+        v_result = None
+    
+    # Close connection
+    if fn_close != None:
+        fn_close(
+            p_params=p_params,
+            p_context=v_context
+        )
+
+    return v_result
+
+
+# ----------------------------------------------------
+# Execute finish task
+# ----------------------------------------------------
+def finish_task(p_params, fn_connect, fn_run, fn_close):
+
+    # Initialize
+    v_context = dict()
+    v_timestamp = dict()
+    v_timestamp['start'] = datetime.datetime.today()
+
+    # Initialize connection
+    if fn_connect != None:
+        v_context = fn_connect(
+            p_params=p_params
+        )
+            
+    # Run the finish task
+    if fn_run != None:
+        v_result = fn_run(
+            p_params=p_params,
+            p_context=v_context
+        )
+    else:
+        v_result = None
+    
+    # Close connection
+    if fn_close != None:
+        fn_close(
+            p_params=p_params,
+            p_context=v_context
+        )
+
+    return v_result
 
 
 # ----------------------------------------------------
@@ -615,118 +1024,75 @@ def close_oracle_fast(p_params, p_connection, p_cursor):
 # ----------------------------------------------------
 def main(p_argv):
 
-    # Save start timestamp
-    v_timestamp = dict()
-    v_timestamp['start'] = datetime.datetime.today()
-
     # Initialize logging
-    initialize_logging(p_argv[0], 'DEBUG');
-
-    # Initialize global variables
-    v_run_id = v_timestamp['start'].strftime('%Y%0m%0d_%H%M%S') + '_'+str(os.getpid())
+    initialize_logging(p_argv[0], 'INFO');
 
     # Get command line parameters
     v_params = get_input_parameters(p_argv)
+    g_logger.setLevel(v_params['loglevel'])
 
     # Initialize functions for scenarios
-    if v_params['action'] == 'run' and v_params['scenario'] == 'single':
-        fn_connect = connect_oracle
-        fn_run = run_single
-        fn_close = close_oracle
-    elif v_params['action'] == 'run' and v_params['scenario'] == 'batch':
-        fn_connect = connect_oracle
-        fn_run = run_batch
-        fn_close = close_oracle
-    elif v_params['action'] == 'run' and v_params['scenario'] == 'array':
-        fn_connect = connect_oracle
-        fn_run = run_array
-        fn_close = close_oracle
-    elif v_params['action'] == 'run' and v_params['scenario'] == 'fast':
-        fn_connect = connect_oracle_fast
-        fn_run = run_fast
-        fn_close = close_oracle_fast
-    elif v_params['action'] == 'init':
-        fn_connect = connect_oracle
-        fn_run = run_truncate
-        fn_close = close_oracle
-    elif v_params['action'] == 'finish':
-        fn_connect = connect_oracle
-        fn_run = run_finish
-        fn_close = close_oracle
+    if v_params['scenario'] == 'single':
+        fn_init_connect,   fn_init_execute,   fn_init_close   = connect_oracle,      run_truncate,  close_oracle
+        fn_run_connect,    fn_run_execute,    fn_run_close    = connect_oracle,      run_single,    close_oracle
+        fn_finish_connect, fn_finish_execute, fn_finish_close = connect_oracle,      run_finish,    close_oracle
+    if v_params['scenario'] == 'batch':
+        fn_init_connect,   fn_init_execute,   fn_init_close   = connect_oracle,      run_truncate,  close_oracle
+        fn_run_connect,    fn_run_execute,    fn_run_close    = connect_oracle,      run_batch,     close_oracle
+        fn_finish_connect, fn_finish_execute, fn_finish_close = connect_oracle,      run_finish,    close_oracle
+    if v_params['scenario'] == 'array':
+        fn_init_connect,   fn_init_execute,   fn_init_close   = connect_oracle,      run_truncate,  close_oracle
+        fn_run_connect,    fn_run_execute,    fn_run_close    = connect_oracle,      run_array,     close_oracle
+        fn_finish_connect, fn_finish_execute, fn_finish_close = connect_oracle,      run_finish,    close_oracle
+    if v_params['scenario'] == 'fast':
+        fn_init_connect,   fn_init_execute,   fn_init_close   = connect_oracle,      run_truncate,  close_oracle
+        fn_run_connect,    fn_run_execute,    fn_run_close    = connect_oracle_fast, run_fast,      close_oracle
+        fn_finish_connect, fn_finish_execute, fn_finish_close = connect_oracle,      run_finish,    close_oracle
+    if v_params['scenario'] == 'stream':
+        fn_init_connect,   fn_init_execute,   fn_init_close   = None,                None,          None
+        fn_run_connect,    fn_run_execute,    fn_run_close    = connect_streaming,   run_streaming, close_streaming
+        fn_finish_connect, fn_finish_execute, fn_finish_close = None,                None,          None
 
-    # Execute init and finish tasks
-    if v_params['action'] in ('init', 'finish'):
+    # Execute init task
+    if fn_init_execute != None:
 
-        # Initialize Oracle connection
-        (v_connection, v_cursor) = fn_connect(p_params=v_params)
-
-        # Rn the action
-        v_result = fn_run(
+        v_result = init_task(
             p_params=v_params,
-            p_connection=v_connection,
-            p_cursor=v_cursor
+            fn_connect=fn_init_connect,
+            fn_run=fn_init_execute,
+            fn_close=fn_init_close
         )
-        
-        # Close Oracle connection
-        fn_close(
-            p_params=v_params,
-            p_connection=v_connection,
-            p_cursor=v_cursor
-        )
+        if v_result != None:
+            print(json.dumps(v_result))
 
     # Execute run tasks
-    elif v_params['action'] == 'run':
+    if fn_run_execute != None:
 
-        # Initialize Oracle connection
-        (v_connection, v_cursor) = fn_connect(p_params=v_params)
-    
-        # Iterate until the time is exceeded
-        v_total_iteration_count = 0
-        v_total_data_count = 0
-    
-        while (datetime.datetime.today()-v_timestamp['start']).total_seconds() <= v_params['duration']:
-    
-            # Generate and insert data
-            v_data_count = fn_run(
-                p_params=v_params,
-                p_scenario_name='{}-{}-{}'.format(v_params['scenario'], v_params['size'], v_params['threads']),
-                p_run_id=v_run_id,
-                p_connection=v_connection,
-                p_cursor=v_cursor
-            )
-    
-            # Increment counters
-            v_total_iteration_count = v_total_iteration_count+1         
-            v_total_data_count = v_total_data_count+v_data_count
-    
-        # Close Oracle connection
-        fn_close(
+        # Run all threads
+        v_result_array = run_all_threads(
             p_params=v_params,
-            p_connection=v_connection,
-            p_cursor=v_cursor
+            fn_connect=fn_run_connect,
+            fn_run=fn_run_execute,
+            fn_close=fn_run_close
         )
-    
-        # Save end timestamp
-        v_timestamp['end'] = datetime.datetime.today()
-    
-        # Create result
-        v_result = {
-            'action' : v_params['action'],
-            'scenario' : v_params['scenario'],
-            'size' : v_params['size'],
-            'table' : v_params['table'],
-            'threads' : v_params['threads'],
-            'current_thread' : v_params['thread'],
-            'run_id' : v_run_id,
-            'max_run_seconds' : v_params['duration'],
-            'load_start_datetime' : v_timestamp['start'].strftime('%Y/%0m/%0d %H:%M:%S,%f'),
-            'load_end_datetime' : v_timestamp['end'].strftime('%Y/%0m/%0d %H:%M:%S,%f'),
-            'elapsed_sec_total' : (v_timestamp['end']-v_timestamp['start']).total_seconds(),
-            'total_iteration_count' : v_total_iteration_count,
-            'total_data_count' : v_total_data_count
-        }
 
-    print (json.dumps(v_result))
+        # Print results
+        for v_result in v_result_array:
+            v_result_output = copy.deepcopy(v_result)
+            v_result_output['load_start_datetime'] = v_result['load_start_datetime'].strftime('%Y/%0m/%0d %H:%M:%S,%f')
+            v_result_output['load_end_datetime'] = v_result['load_end_datetime'].strftime('%Y/%0m/%0d %H:%M:%S,%f')
+            print(json.dumps(v_result_output))
+
+    # Execute finish tasks
+    if fn_finish_execute != None:
+        v_result = finish_task(
+            p_params=v_params,
+            fn_connect=fn_finish_connect,
+            fn_run=fn_finish_execute,
+            fn_close=fn_finish_close
+        )
+        if v_result != None:
+            print(json.dumps(v_result))
 
 
 # ----------------------------------------------------

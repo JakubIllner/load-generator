@@ -1,1 +1,0 @@
-{"action": "run", "scenario": "array", "size": "4ecpu", "table": "gl_stream_array", "threads": 4, "current_thread": 1, "run_id": "20240411_111125_16542", "max_run_seconds": 60, "load_start_datetime": "2024/04/11 11:11:25,786294", "load_end_datetime": "2024/04/11 11:12:25,798990", "elapsed_sec_total": 60.012696, "total_iteration_count": 3664, "total_data_count": 292676}

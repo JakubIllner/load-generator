@@ -1,70 +1,86 @@
-<mxfile host="Electron" modified="2024-04-11T13:59:46.674Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.1.0 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="d7P7busLXTtqkO1UR8Ay" version="24.1.0" type="device" pages="2">
+<mxfile host="Electron" modified="2024-06-12T10:59:16.568Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.1 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="z3X-8e9aOYccpA4XCVNF" version="24.5.1" type="device">
   <diagram id="4VbordraoObzrbYQRHzU" name="run">
     <mxGraphModel dx="1430" dy="826" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="J7IGNAsHjFl7qfXv-FmI-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="J7IGNAsHjFl7qfXv-FmI-1" target="J7IGNAsHjFl7qfXv-FmI-2">
+        <mxCell id="KjfulKAbPI7neExfZQct-23" value="&lt;div style=&quot;font-size: 14px;&quot;&gt;&lt;b style=&quot;font-size: 14px;&quot;&gt;run-gen.py&lt;/b&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=14;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="920" height="640" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-15" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;strokeColor=#999999;" edge="1" parent="1" source="PQRysiudLoznUfIGEcdL-1" target="KjfulKAbPI7neExfZQct-4">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="J7IGNAsHjFl7qfXv-FmI-1" value="&lt;b&gt;Connect&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Connect to database&lt;/div&gt;&lt;div&gt;Open cursor&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_connect()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="40" y="65" width="180" height="90" as="geometry" />
+        <mxCell id="PQRysiudLoznUfIGEcdL-1" value="&lt;b&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Initialize&lt;/font&gt;&lt;/b&gt;&lt;div&gt;Initialize the run - truncate the target table before the load for Oracle Database scenario (do nothing for OCI Streaming scenario)&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=8;fillColor=#E6E6E6;" vertex="1" parent="1">
+          <mxGeometry x="80" y="80" width="840" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="J7IGNAsHjFl7qfXv-FmI-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="J7IGNAsHjFl7qfXv-FmI-2" target="J7IGNAsHjFl7qfXv-FmI-4">
+        <mxCell id="KjfulKAbPI7neExfZQct-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#999999;" edge="1" parent="1" source="PQRysiudLoznUfIGEcdL-2" target="PQRysiudLoznUfIGEcdL-3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="J7IGNAsHjFl7qfXv-FmI-2" value="&lt;b&gt;Iterate&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Iterate until the specified duration in seconds is exceeded&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;arcSize=8;" vertex="1" parent="1">
-          <mxGeometry x="320" y="20" width="280" height="180" as="geometry" />
+        <mxCell id="PQRysiudLoznUfIGEcdL-2" value="&lt;b&gt;Connect&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Connect to Database&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_init_connect()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="155" y="130" width="180" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="J7IGNAsHjFl7qfXv-FmI-4" value="&lt;b&gt;Close&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Close cursor and connection&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_close()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="700" y="65" width="180" height="90" as="geometry" />
-        </mxCell>
-        <mxCell id="tFM_pPSKWnTr8qmFiJy1-2" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="360" y="80" width="180" height="90" as="geometry" />
-        </mxCell>
-        <mxCell id="tFM_pPSKWnTr8qmFiJy1-3" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="370" y="90" width="180" height="90" as="geometry" />
-        </mxCell>
-        <mxCell id="tFM_pPSKWnTr8qmFiJy1-4" value="&lt;b&gt;Run&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Generate data for single iteration&lt;/div&gt;&lt;div&gt;Write data to the database&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_run()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="380" y="100" width="180" height="90" as="geometry" />
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
-  <diagram name="driver" id="74TD7CM1vhavtygQ4nb6">
-    <mxGraphModel dx="1430" dy="826" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
-      <root>
-        <mxCell id="0" />
-        <mxCell id="1" parent="0" />
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="iXItGQfJ3jB6MkR89S6P-2" target="iXItGQfJ3jB6MkR89S6P-6">
+        <mxCell id="KjfulKAbPI7neExfZQct-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#999999;" edge="1" parent="1" source="PQRysiudLoznUfIGEcdL-3" target="KjfulKAbPI7neExfZQct-1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-2" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="250" y="40" width="180" height="90" as="geometry" />
+        <mxCell id="PQRysiudLoznUfIGEcdL-3" value="&lt;b&gt;Run&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Truncate target table&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_init_execute()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="405" y="130" width="180" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="iXItGQfJ3jB6MkR89S6P-1" target="iXItGQfJ3jB6MkR89S6P-2">
+        <mxCell id="KjfulKAbPI7neExfZQct-1" value="&lt;b&gt;Close&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Close connection&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_init_close()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="665" y="130" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;curved=0;strokeColor=#999999;" edge="1" parent="1" source="KjfulKAbPI7neExfZQct-4" target="KjfulKAbPI7neExfZQct-16">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-1" value="&lt;b&gt;Initialize&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Truncate target table&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;python3 run-gen.py -a init&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="40" y="40" width="180" height="90" as="geometry" />
+        <mxCell id="KjfulKAbPI7neExfZQct-4" value="&lt;b&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Run&lt;/font&gt;&lt;/b&gt;&lt;div&gt;Run the load - asynchronously run multiple parallel processes, based on the required number of threads&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=6;fillColor=#E6E6E6;" vertex="1" parent="1">
+          <mxGeometry x="80" y="260" width="840" height="220" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-3" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="260" y="50" width="180" height="90" as="geometry" />
+        <mxCell id="KjfulKAbPI7neExfZQct-5" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="110" y="310" width="760" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-4" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="270" y="60" width="180" height="90" as="geometry" />
+        <mxCell id="KjfulKAbPI7neExfZQct-6" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="120" y="320" width="760" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-5" value="&lt;b&gt;Run&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Run load into target table in parallel&lt;/div&gt;&lt;div&gt;Stop after defined number of seconds&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;python3 run-gen.py -a run &amp;amp;&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="280" y="70" width="180" height="90" as="geometry" />
+        <mxCell id="KjfulKAbPI7neExfZQct-7" value="&lt;b&gt;Run Single Process&lt;/b&gt;&lt;div&gt;Iterate until the specified duration in seconds is exceeded&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="130" y="330" width="760" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="iXItGQfJ3jB6MkR89S6P-6" target="iXItGQfJ3jB6MkR89S6P-7">
+        <mxCell id="KjfulKAbPI7neExfZQct-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=-0.002;entryY=0.641;entryDx=0;entryDy=0;entryPerimeter=0;strokeColor=#999999;" edge="1" parent="1" source="KjfulKAbPI7neExfZQct-8" target="KjfulKAbPI7neExfZQct-9">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-6" value="&lt;b&gt;Wait&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Wait for all the parallel runs to finish&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;wait&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="490" y="40" width="180" height="90" as="geometry" />
+        <mxCell id="KjfulKAbPI7neExfZQct-8" value="&lt;b&gt;Connect&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Connect to Database or Streaming&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_run_connect()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="155" y="370" width="180" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="iXItGQfJ3jB6MkR89S6P-7" value="&lt;b&gt;Close&lt;/b&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Write load statistics to out directory&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;python3 run-gen.py -a close&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
-          <mxGeometry x="700" y="40" width="180" height="90" as="geometry" />
+        <mxCell id="KjfulKAbPI7neExfZQct-9" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="400" y="360" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-10" value="&lt;b&gt;Close&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Close connection&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_run_close()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="665" y="370" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-11" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="410" y="370" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1.001;exitY=0.356;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;strokeColor=#999999;" edge="1" parent="1" source="KjfulKAbPI7neExfZQct-12" target="KjfulKAbPI7neExfZQct-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-12" value="&lt;b&gt;Run&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Generate and write data for single iteration&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_run_execute()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="420" y="380" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-16" value="&lt;b&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Finish&lt;/font&gt;&lt;/b&gt;&lt;div&gt;Finish the run - get statistics about the data loaded to the Oracle Database&amp;nbsp;&lt;span style=&quot;background-color: initial;&quot;&gt;(do nothing for OCI Streaming scenario)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=10;spacingRight=4;verticalAlign=top;arcSize=8;fillColor=#E6E6E6;" vertex="1" parent="1">
+          <mxGeometry x="80" y="520" width="840" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#999999;" edge="1" parent="1" source="KjfulKAbPI7neExfZQct-18" target="KjfulKAbPI7neExfZQct-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-18" value="&lt;b&gt;Connect&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Connect to Database&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_finish_connect()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="155" y="570" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#999999;" edge="1" parent="1" source="KjfulKAbPI7neExfZQct-20" target="KjfulKAbPI7neExfZQct-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-20" value="&lt;b&gt;Run&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Get and print statistics&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_finish_execute()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="405" y="570" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="KjfulKAbPI7neExfZQct-21" value="&lt;b&gt;Close&lt;/b&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Close connection&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Consolas&quot;&gt;fn_finish_close()&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=10;align=left;spacingLeft=4;spacingRight=4;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="665" y="570" width="180" height="70" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
