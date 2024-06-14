@@ -868,6 +868,7 @@ def run_one_thread(p_params, fn_connect, fn_run, fn_close):
         'type' : 'detail',
         'scenario' : p_params['scenario'],
         'table' : p_params['table'],
+        'topic' : p_params['topic'],
         'size' : p_params['size'],
         'threads' : p_params['threads'],
         'thread' : p_params['thread'],
